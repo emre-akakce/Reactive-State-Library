@@ -1,11 +1,11 @@
-// Simple Reactive State Library
-(function(global) {
+// Simple Reactive State Library with Comprehensive State Tracking
+(function (global) {
     /**
-     * ReactiveState - A simple reactive state management library.
+     * ReactiveState - A simple reactive state management library with comprehensive state tracking.
      *
      * @param {Object} initialState - The initial state object.
      * @param {Function} callback - Function to call whenever the state changes.
-     * @returns {Proxy} A proxy-wrapped reactive state object.
+     * @returns {Object} An object containing the reactive proxy and methods for tracking state.
      */
     function ReactiveState(initialState, callback) {
         if (typeof initialState !== 'object' || initialState === null) {
@@ -16,20 +16,41 @@
             throw new Error("Callback must be a function.");
         }
 
-        return new Proxy(initialState, {
-            set(target, property, value) {
-                target[property] = value; // Update the state
-                callback(property, value); // Trigger the callback
-                return true; // Indicate success
-            },
-            get(target, property) {
-                // Support nested reactivity
-                const value = target[property];
-                return typeof value === 'object' && value !== null
-                    ? ReactiveState(value, callback)
-                    : value;
-            }
-        });
+        const stateHistory = []; // Shared array to track state changes
+
+        function createProxy(target) {
+            return new Proxy(target, {
+                set(obj, property, value) {
+                    const oldValue = obj[property];
+                    obj[property] = value; // Update the state
+
+                    // Log state changes
+                    stateHistory.push({
+                        property: `${obj === target ? '' : 'nested.'}${property}`,
+                        oldValue,
+                        newValue: value,
+                        timestamp: new Date().toISOString(),
+                    });
+
+                    callback(property, value); // Trigger the callback
+                    return true; // Indicate success
+                },
+                get(obj, property) {
+                    const value = obj[property];
+                    // Ensure nested objects are also reactive
+                    return typeof value === 'object' && value !== null
+                        ? createProxy(value)
+                        : value;
+                },
+            });
+        }
+
+        const proxy = createProxy(initialState);
+
+        return {
+            proxy, // The reactive state
+            getStateHistory: () => [...stateHistory], // Function to retrieve the state change history
+        };
     }
 
     // Expose the library to the global object
@@ -40,7 +61,7 @@
 if (typeof window !== "undefined") {
     document.addEventListener("DOMContentLoaded", () => {
         // Example 1: Reactive Counter
-        const appState = ReactiveState(
+        const { proxy: appState } = ReactiveState(
             { count: 0 },
             (property, value) => {
                 // Update the UI when state changes
@@ -56,7 +77,7 @@ if (typeof window !== "undefined") {
         });
 
         // Example 2: Nested Reactivity
-        const userState = ReactiveState(
+        const { proxy: userState, getStateHistory } = ReactiveState(
             { user: { name: "Alice", age: 25 } },
             (property, value) => {
                 console.log(`Property '${property}' updated to: ${value}`);
@@ -78,7 +99,7 @@ if (typeof window !== "undefined") {
         });
 
         // Example 3: Logging State Changes
-        const loggingState = ReactiveState(
+        const { proxy: loggingState } = ReactiveState(
             { action: "none" },
             (property, value) => {
                 console.log(`Action '${property}' set to: ${value}`);
@@ -88,5 +109,10 @@ if (typeof window !== "undefined") {
         // Change state to trigger logging
         loggingState.action = "clicked";
         loggingState.action = "submitted";
+
+        // Display state history
+        document.getElementById("showHistoryBtn").addEventListener("click", () => {
+            console.log("State History:", getStateHistory());
+        });
     });
 }
