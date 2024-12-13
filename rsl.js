@@ -39,6 +39,7 @@
 // Example usage
 if (typeof window !== "undefined") {
     document.addEventListener("DOMContentLoaded", () => {
+        // Example 1: Reactive Counter
         const appState = ReactiveState(
             { count: 0 },
             (property, value) => {
@@ -53,5 +54,39 @@ if (typeof window !== "undefined") {
         document.getElementById("incrementBtn").addEventListener("click", () => {
             appState.count += 1;
         });
+
+        // Example 2: Nested Reactivity
+        const userState = ReactiveState(
+            { user: { name: "Alice", age: 25 } },
+            (property, value) => {
+                console.log(`Property '${property}' updated to: ${value}`);
+                if (property === "name") {
+                    document.getElementById("userNameDisplay").textContent = value;
+                }
+                if (property === "age") {
+                    document.getElementById("userAgeDisplay").textContent = value;
+                }
+            }
+        );
+
+        // Set up UI elements for nested reactivity
+        document.getElementById("changeNameBtn").addEventListener("click", () => {
+            userState.user.name = "Bob";
+        });
+        document.getElementById("incrementAgeBtn").addEventListener("click", () => {
+            userState.user.age += 1;
+        });
+
+        // Example 3: Logging State Changes
+        const loggingState = ReactiveState(
+            { action: "none" },
+            (property, value) => {
+                console.log(`Action '${property}' set to: ${value}`);
+            }
+        );
+
+        // Change state to trigger logging
+        loggingState.action = "clicked";
+        loggingState.action = "submitted";
     });
 }
